@@ -4,142 +4,138 @@ import jwt
 import datetime
 import os
 
-app = Flask(__name__, static_folder=".", static_url_path="")
+app = Flask(__name__, static_folder="")  # serve arquivos estáticos do mesmo diretório
 CORS(app)  # libera CORS para todas as rotas
 
 SECRET_KEY = "segredo_super_secreto"
 
-# --- ARMAZENAMENTO SIMPLES (memória) ---
-USERS = {}  # username -> {password, email}
-CARTS = {}  # username -> [{product_id, qty}]
-PRODUCTS = [
-    {"id": 1, "name": "Câmera IP", "price": 199, "img": "https://via.placeholder.com/300?text=C%C3%A2mera"},
-    {"id": 2, "name": "SSD 480GB", "price": 159, "img": "https://via.placeholder.com/300?text=SSD"},
-    {"id": 3, "name": "Mouse Gamer", "price": 79, "img": "https://via.placeholder.com/300?text=Mouse"},
-    {"id": 4, "name": "Teclado RGB", "price": 129, "img": "https://via.placeholder.com/300?text=Teclado"},
-]
-
-# --- ROTAS DE ARQUIVOS ---
+# --- ROTA PRINCIPAL (SERVIR HTML) ---
 @app.route("/")
-def index():
+def home():
     return send_from_directory(".", "index.html")
 
+
+# --- ROTA PARA SERVIR ARQUIVOS ESTÁTICOS (app.js, css, imagens, etc) ---
 @app.route("/<path:path>")
 def static_files(path):
     if os.path.exists(path):
         return send_from_directory(".", path)
     return "Arquivo não encontrado", 404
 
-# --- AUTENTICAÇÃO DA APLICAÇÃO ---
+
+# --- AUTENTICAÇÃO DE APLICAÇÃO ---
 @app.route("/auth", methods=["POST"])
-def auth():
+def auth_app():
     data = request.json
     client_id = data.get("clientID")
     client_secret = data.get("clientSecret")
 
     if client_id == "123" and client_secret == "abc":
-        return jsonify({"status": "ok", "message": "Aplicação validada"})
+        return jsonify({"status": "ok", "message": "Autenticado"})
     return jsonify({"status": "erro", "message": "Credenciais inválidas"}), 401
 
-# --- REGISTRO ---
-@app.route("/register", methods=["POST"])
-def register():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
-    email = data.get("email")
 
-    if not username or not password or not email:
-        return jsonify({"error": "Preencha todos os campos"}), 400
-    if username in USERS:
-        return jsonify({"error": "Usuário já existe"}), 400
-
-    USERS[username] = {"password": password, "email": email, "role": "user"}
-    CARTS[username] = []
-    return jsonify({"message": "Conta criada com sucesso"}), 200
-
-# --- LOGIN ---
+# --- LOGIN DE USUÁRIO / JWT ---
 @app.route("/login", methods=["POST"])
 def login():
     data = request.json
+    client_id = data.get("clientID")  # enviado pelo front
     username = data.get("username")
     password = data.get("password")
 
-    user = USERS.get(username)
-    if not user or user["password"] != password:
-        return jsonify({"error": "Login inválido"}), 401
+    # você pode validar client_id se quiser
+    if username == "admin" and password == "123":
+        token = jwt.encode(
+            {"user": username, "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)},
+            SECRET_KEY,
+            algorithm="HS256"
+        )
+        return jsonify({"token": token})
 
-    token = jwt.encode({
-        "sub": username,
-        "name": username,
-        "email": user["email"],
-        "role": user["role"],
-        "iat": datetime.datetime.utcnow(),
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)
-    }, SECRET_KEY, algorithm="HS256")
+    return jsonify({"error": "login inválido"}), 401
 
-    return jsonify({"token": token})
 
-# --- PRODUTOS ---
+# --- LISTA DE PRODUTOS ---
 @app.route("/products", methods=["GET"])
-def get_products():
-    return jsonify(PRODUCTS)
+def products():
+    lista = [
+        {"id": 1, "name": "Câmera IP", "price": 199, "img": "https://via.placeholder.com/300?text=Câmera+IP"},
+        {"id": 2, "name": "SSD 480GB", "price": 159, "img": "https://via.placeholder.com/300?text=SSD+480GB"},
+        {"id": 3, "name": "Mouse Gamer", "price": 79, "img": "https://via.placeholder.com/300?text=Mouse+Gamer"},
+        {"id": 4, "name": "Teclado RGB", "price": 129, "img": "https://via.placeholder.com/300?text=Teclado+RGB"},
+    ]
+    return jsonify({"products": lista})
 
-# --- CARRINHO ---
-def get_username_from_token(req):
+
+# --- CARRINHO SIMPLES EM MEMÓRIA ---
+carts = {}  # {token: [{product_id, qty}, ...]}
+
+def verify_jwt(req):
     auth = req.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         return None
     token = auth.split(" ")[1]
     try:
-        data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return data["sub"]
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return payload["user"]
     except:
         return None
 
+
 @app.route("/cart", methods=["GET", "POST", "PUT", "DELETE"])
-def cart():
-    username = get_username_from_token(request)
-    if not username:
-        return jsonify({"error": "Não autorizado"}), 401
+def cart_ops():
+    user = verify_jwt(request)
+    if not user:
+        return jsonify({"error": "não autorizado"}), 401
+
+    if user not in carts:
+        carts[user] = []
 
     if request.method == "GET":
-        return jsonify({"cart": CARTS.get(username, [])})
+        return jsonify({"cart": carts[user]})
 
-    elif request.method == "POST":
-        data = request.json
+    data = request.json
+
+    if request.method == "POST":
+        # adicionar item
         product_id = data.get("product_id")
         qty = data.get("qty", 1)
-        cart = CARTS.get(username, [])
-        for item in cart:
-            if item["product_id"] == product_id:
-                item["qty"] += qty
-                break
+        found = next((i for i in carts[user] if i["product_id"] == product_id), None)
+        if found:
+            found["qty"] += qty
         else:
-            cart.append({"product_id": product_id, "qty": qty})
-        CARTS[username] = cart
-        return jsonify({"cart": cart})
+            carts[user].append({"product_id": product_id, "qty": qty})
+        return jsonify({"cart": carts[user]})
 
-    elif request.method == "PUT":
-        data = request.json
+    if request.method == "PUT":
+        # atualizar carrinho
         items = data.get("items", [])
-        CARTS[username] = items
-        return jsonify({"cart": CARTS[username]})
+        carts[user] = items
+        return jsonify({"cart": carts[user]})
 
-    elif request.method == "DELETE":
-        CARTS[username] = []
+    if request.method == "DELETE":
+        carts[user] = []
         return jsonify({"cart": []})
 
-# --- CHECKOUT ---
+
+# --- CHECKOUT SIMPLES ---
 @app.route("/checkout", methods=["POST"])
 def checkout():
-    username = get_username_from_token(request)
-    if not username:
-        return jsonify({"error": "Não autorizado"}), 401
-    # Aqui só limpamos o carrinho
-    CARTS[username] = []
-    return jsonify({"order": {"id": f"ORDER-{datetime.datetime.utcnow().timestamp()}"}})
+    user = verify_jwt(request)
+    if not user:
+        return jsonify({"error": "não autorizado"}), 401
 
-# --- RUN ---
+    cart = carts.get(user, [])
+    if not cart:
+        return jsonify({"error": "carrinho vazio"}), 400
+
+    # aqui poderia integrar pagamento, etc
+    order_id = int(datetime.datetime.utcnow().timestamp())
+    carts[user] = []  # limpa carrinho
+    return jsonify({"order": {"id": order_id, "items": cart}})
+
+
+# --- EXECUÇÃO NO RENDER ---
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
