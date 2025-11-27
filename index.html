@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Loja TechSecurity — Demo</title>
+
+  <style>
+    body {
+        background: #0d1117;
+        color: #fff;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+
+    header {
+        background: #161b22;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #fff;
+    }
+
+    .logo {
+        background: #00aaff;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 20px;
+    }
+
+    .nav button {
+        margin-left: 10px;
+        padding: 10px 15px;
+        border: none;
+        background: #00aaff;
+        color: #000;
+        font-weight: bold;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .ghost {
+        background: transparent !important;
+        border: 1px solid #555 !important;
+        color: #fff !important;
+    }
+
+    .page { display: none; padding: 25px; }
+    .page.active { display: block; }
+
+    #products-section {
+        padding: 30px;
+        text-align: center;
+    }
+
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+        gap: 25px;
+        margin-top: 20px;
+    }
+
+    .product {
+        background: #1c2128;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 0 10px #0006;
+        text-align: center;
+    }
+
+    .product img {
+        width: 100%;
+        height:140px;
+        object-fit:cover;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+
+    .product h3 { font-size: 18px; margin-bottom: 5px; }
+    .price {
+        color: #00ff85;
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    .product button {
+        background: #00aaff;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    /* Forms */
+    .form-box {
+        max-width: 400px;
+        margin: auto;
+        background: #1c2128;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 0 10px #0006;
+    }
+
+    input {
+        width: 100%;
+        padding: 12px;
+        margin-top: 10px;
+        border: none;
+        background: #161b22;
+        color: white;
+        border-radius: 8px;
+    }
+
+    .btn-primary {
+        margin-top: 15px;
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        background: #00aaff;
+        cursor: pointer;
+        font-weight: bold;
+    }
+  </style>
+
+  <script defer src="app.js"></script>
+
+</head>
+<body>
+
+  <header>
+    <div class="logo">TS</div>
+    <div class="brand-name">TechSecurity</div>
+
+    <div class="nav">
+      <button class="ghost" onclick="navigate('home')">Início</button>
+      <button class="ghost" onclick="navigate('products-section')">Produtos</button>
+      <button class="ghost" onclick="navigate('cart')">Carrinho (<span id="cart-count">0</span>)</button>
+      <button onclick="navigate('checkout')">Checkout</button>
+      <button onclick="navigate('auth-app')">Autenticação</button>
+      <button onclick="navigate('login')">Login</button>
+      <button onclick="navigate('register')">Registrar</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- HOME -->
+    <section id="home" class="page active">
+      <h1 style="text-align:center;margin-top:30px">Bem-vindo à TechSecurity</h1>
+      <p style="text-align:center;color:#aaa">A melhor loja de eletrônicos do Brasil</p>
+    </section>
+
+    <!-- AUTENTICAÇÃO (clientID + clientSecret) -->
+    <section id="auth-app" class="page">
+      <h2>Autenticação da Aplicação</h2>
+      <div class="form-box">
+        <input type="text" id="clientID" placeholder="clientID">
+        <input type="password" id="clientSecret" placeholder="clientSecret">
+        <button class="btn-primary" id="btnAuthApp">Enviar</button>
+      </div>
+    </section>
+
+    <!-- LOGIN -->
+    <section id="login" class="page">
+      <h2>Login do Usuário</h2>
+      <div class="form-box">
+        <input type="text" id="loginUser" placeholder="Nome de usuário">
+        <input type="password" id="loginPass" placeholder="Senha">
+        <button class="btn-primary" id="btnLogin">Entrar</button>
+      </div>
+    </section>
+
+    <!-- REGISTRO -->
+    <section id="register" class="page">
+      <h2>Criar Conta</h2>
+      <div class="form-box">
+        <input type="text" id="regUser" placeholder="Nome de usuário">
+        <input type="email" id="regEmail" placeholder="Email">
+        <input type="password" id="regPass" placeholder="Senha">
+        <button class="btn-primary" id="btnRegister">Registrar</button>
+      </div>
+    </section>
+
+    <!-- PRODUTOS -->
+    <section id="products-section" class="page">
+      <h2>Nossos Produtos</h2>
+      <div class="product-grid" id="product-grid"></div>
+    </section>
+
+    <!-- CARRINHO -->
+    <section id="cart" class="page">
+      <h2>Carrinho</h2>
+      <div id="cart-list"></div>
+
+      <button onclick="clearCart()" style="margin-top:20px;padding:10px;border:none;border-radius:8px;background:#ff4444;color:white">
+        Esvaziar Carrinho
+      </button>
+    </section>
+
+    <!-- CHECKOUT -->
+    <section id="checkout" class="page">
+      <h2>Finalizar Pedido</h2>
+
+      <button id="confirmarPedido"
+              style="margin-top:20px; width:100%; padding:12px; border:none; border-radius:8px; background:#4CAF50; color:white; font-size:16px; cursor:pointer;">
+          Confirmar Pedido
+      </button>
+    </section>
+
+  </main>
+
+</body>
+</html>
