@@ -1,0 +1,9 @@
+{
+  "joao.silva": {
+    "sub": "1234567890",
+    "name": "Joao Silva",
+    "email": "joao.silva@example.com",
+    "role": "admin",
+    "password_hash": "pbkdf2:sha256:150000$example$e5a..."
+  }
+}

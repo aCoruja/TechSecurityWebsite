@@ -1,0 +1,7 @@
+{
+  "example-client-1": {
+    "name": "App Exemplo",
+    "clientSecret": "secret123",
+    "redirect_uri": "https://example.com/callback"
+  }
+}
